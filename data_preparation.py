@@ -2,6 +2,9 @@ import kagglehub
 import shutil
 import os
 from pathlib import Path
+import numpy as np
+import scipy
+from scipy.ndimage.filters import gaussian_filter
 
 
 def get_data_from_Kaggle(dataset, destination_path):
@@ -114,3 +117,24 @@ def split_test_val_test(path):
                             os.path.join(target_folder, "matrices", file))
     shutil.rmtree(images_folder)
     shutil.rmtree(matrices_folder)
+
+def create_density_map(image, points, leaf_size = 64, k=5, beta = 0.3):
+    img_shape = image.shape[:2]
+    density = np.zeros(img_shape)
+    num_points = len(points)
+    if num_points==0:
+        return density
+
+    tree = scipy.spatial.KDTree(points.copy(), leafsize=leaf_size)
+    distances, _ = tree.query(points, k=k+1)
+
+    for i, point in enumerate(points):
+        step_array = np.zeros(img_shape)
+        if point[1] < img_shape[0] and point[0] < img_shape[1]:
+            step_array[int(point[1]), int(point[0])] = 1
+        else:
+            continue
+        sigma = sum(distances[i][1:(k+1)])/k * beta
+        density += gaussian_filter(step_array, sigma, mode='constant')
+
+    return density
