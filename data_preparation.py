@@ -4,7 +4,8 @@ import os
 from pathlib import Path
 import numpy as np
 import scipy
-from scipy.ndimage.filters import gaussian_filter
+import matplotlib.pyplot as plt
+import torch
 
 
 def get_data_from_Kaggle(dataset, destination_path):
@@ -118,23 +119,96 @@ def split_test_val_test(path):
     shutil.rmtree(images_folder)
     shutil.rmtree(matrices_folder)
 
+
+
 def create_density_map(image, points, leaf_size = 64, k=5, beta = 0.3):
-    img_shape = image.shape[:2]
-    density = np.zeros(img_shape)
-    num_points = len(points)
-    if num_points==0:
+    h, w = image.shape[:2]
+    density = torch.zeros((h, w), dtype=torch.float32)
+
+    if len(points) == 0:
         return density
 
+    pts = np.array(points)
     tree = scipy.spatial.KDTree(points.copy(), leafsize=leaf_size)
-    distances, _ = tree.query(points, k=k+1)
+    distances, _ = tree.query(pts, k=min(k+1, len(points)))
 
-    for i, point in enumerate(points):
-        step_array = np.zeros(img_shape)
-        if point[1] < img_shape[0] and point[0] < img_shape[1]:
-            step_array[int(point[1]), int(point[0])] = 1
+    for i, (x, y) in enumerate(pts):
+        x, y = int(x), int(y)
+
+        if len(points) > 1:
+            sigma = beta * np.mean(distances[i][1:])
         else:
-            continue
-        sigma = sum(distances[i][1:(k+1)])/k * beta
-        density += gaussian_filter(step_array, sigma, mode='constant')
+            sigma = 10
+
+        size = int(6 * sigma + 1)
+        if size % 2 == 0:
+            size += 1
+
+        grid = torch.arange(size).float() - size // 2
+        x_grid, y_grid = torch.meshgrid(grid, grid, indexing='ij')
+        kernel = torch.exp(-(x_grid**2 + y_grid**2) / (2 * sigma**2))
+        kernel /= kernel.sum()
+
+        x1 = max(0, x - size // 2)
+        y1 = max(0, y - size // 2)
+        x2 = min(w, x + size // 2 + 1)
+        y2 = min(h, y + size // 2 + 1)
+
+        kx1 = max(0, size // 2 - x)
+        ky1 = max(0, size // 2 - y)
+        kx2 = kx1 + (x2 - x1)
+        ky2 = ky1 + (y2 - y1)
+        if (x2 > x1) and (y2 > y1) and (kx2 > kx1) and (ky2 > ky1):
+            density[y1:y2, x1:x2] += kernel[ky1:ky2, kx1:kx2]
+        else:
+            print(f"Skipped invalid slice at point {(x, y)} with sigma={sigma}")
 
     return density
+
+
+def create_density_maps_in_folders(path, ann_first = True, mat_format = '.mat', is_shanghai = False):
+    dir_list = os.listdir(path)
+    if 'matrices' not in dir_list:
+        for dir in dir_list:
+            new_path = os.path.join(path, dir)
+            if os.path.isdir(new_path):
+                create_density_maps_in_folders(new_path, ann_first, mat_format, is_shanghai)
+    else:
+        images_path = os.path.join(path,'images')
+        matrices_path = os.path.join(path,'matrices')
+        maps_path = os.path.join(path,'maps')
+        os.makedirs(maps_path, exist_ok=True)
+        images_list = os.listdir(images_path)
+        maps_list = os.listdir(maps_path)
+        for image in images_list:
+            image_path = os.path.join(images_path, image)
+            image_view = plt.imread(image_path)
+            matrix_file_name = image.replace('.jpg', '').split('.')
+            matrix_file_name.insert(0, 'ann_') if ann_first else matrix_file_name.insert(1, '_ann')
+            if is_shanghai:
+                matrix_file_name.insert(1, 'GT_')
+            matrix_file_name = ''.join(matrix_file_name)
+            if image.replace('.jpg', '.npy') in maps_list:
+                continue
+            print(matrix_file_name)
+            matrix_path = os.path.join(matrices_path, matrix_file_name)
+            if mat_format == '.mat':
+                if is_shanghai:
+                    points = scipy.io.loadmat(matrix_path)['image_info'][0,0][0,0][0]
+                else:
+                    points = scipy.io.loadmat(matrix_path)['annPoints']
+            else:
+                points = []
+                print(matrix_path)
+                matrix_path = matrix_path + '.txt'
+                print(matrix_path)
+                with open(matrix_path, "r") as f:
+                    for line in f:
+                        numbers = np.int32(line.split())
+                        points.append(numbers[:2])
+
+                points = np.array(points)
+            density_map = create_density_map(image_view, points)
+            map_name = image.split('.')[0]
+            map_path = os.path.join(maps_path, map_name)
+            np.save(map_path, density_map)
