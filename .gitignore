@@ -209,4 +209,5 @@ __marimo__/
 
 #Custom
 /data
+.npy
 .vscode
