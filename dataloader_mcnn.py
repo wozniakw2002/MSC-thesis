@@ -30,13 +30,11 @@ class CrowdDataset(Dataset):
 
         gt_dmap=np.load(os.path.join(self.gt_map_path,img_name.replace('.jpg','.npz')))['arr']
         gt_dmap = gt_dmap.astype(np.float32)
-        print('cos', gt_dmap)
         if self.gt_downsample>1:
             ds_rows=int(img.shape[0]//self.gt_downsample)
             ds_cols=int(img.shape[1]//self.gt_downsample)
             img = cv2.resize(img,(ds_cols*self.gt_downsample,ds_rows*self.gt_downsample))
             img=img.transpose((2,0,1))
-            print(ds_rows, ds_cols)
             gt_dmap=cv2.resize(gt_dmap,(ds_cols,ds_rows))
             gt_dmap=gt_dmap[np.newaxis,:,:]*(self.gt_downsample**2)
             #gt_dmap = gt_dmap.transpose((1,2,0))
