@@ -28,7 +28,7 @@ class CrowdDataset(Dataset):
             img=img[:,:,np.newaxis]
             img=np.concatenate((img,img,img),2)
 
-        gt_dmap=np.load(os.path.join(self.gt_map_path,img_name.replace('.jpg','.npy')))
+        gt_dmap=np.load(os.path.join(self.gt_map_path,img_name.replace('.jpg','.npz')))['arr']
 
         if self.gt_downsample>1:
             ds_rows=int(img.shape[0]//self.gt_downsample)

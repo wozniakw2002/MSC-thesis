@@ -188,7 +188,7 @@ def create_density_maps_in_folders(path, ann_first = True, mat_format = '.mat', 
             if is_shanghai:
                 matrix_file_name.insert(1, 'GT_')
             matrix_file_name = ''.join(matrix_file_name)
-            if image.replace('.jpg', '.npy') in maps_list:
+            if image.replace('.jpg', '.npz') in maps_list:
                 continue
             print(matrix_file_name)
             matrix_path = os.path.join(matrices_path, matrix_file_name)
@@ -211,4 +211,4 @@ def create_density_maps_in_folders(path, ann_first = True, mat_format = '.mat', 
             density_map = create_density_map(image_view, points)
             map_name = image.split('.')[0]
             map_path = os.path.join(maps_path, map_name)
-            np.save(map_path, density_map)
+            np.savez_compressed(map_path, arr=density_map)
