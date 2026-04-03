@@ -27,6 +27,8 @@ class CrowdDataset(Dataset):
         if len(img.shape)==2:
             img=img[:,:,np.newaxis]
             img=np.concatenate((img,img,img),2)
+        if img.shape[2] == 4:
+            img = img[:, :, :3] 
         gt_dmap=np.load(os.path.join(self.gt_map_path,img_name.replace('.jpg','.npz')))['arr']
         gt_dmap = gt_dmap.astype(np.float32)
 
