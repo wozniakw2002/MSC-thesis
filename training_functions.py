@@ -26,7 +26,7 @@ def training_epoch(model, dataloader, optimizer, criterion, device):
 def evaluate_mae_mse(model, dataloader, device):
     model.eval()
     mae = 0
-
+    mse = 0
     with torch.no_grad():
         for img, gt_map in dataloader:
             img = img.to(device)
