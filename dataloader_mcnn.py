@@ -27,9 +27,14 @@ class CrowdDataset(Dataset):
         if len(img.shape)==2:
             img=img[:,:,np.newaxis]
             img=np.concatenate((img,img,img),2)
-        print(img.dtype)
         gt_dmap=np.load(os.path.join(self.gt_map_path,img_name.replace('.jpg','.npz')))['arr']
         gt_dmap = gt_dmap.astype(np.float32)
+
+        TARGET_SIZE = (640, 360)
+        orig_h, orig_w = img.shape[:2]
+        img = cv2.resize(img, TARGET_SIZE)
+        gt_dmap = cv2.resize(gt_dmap, TARGET_SIZE[::-1])
+        gt_dmap = gt_dmap * ((orig_h * orig_w) / (TARGET_SIZE[1] * TARGET_SIZE[0]))
         if self.gt_downsample>1:
             ds_rows=int(img.shape[0]//self.gt_downsample)
             ds_cols=int(img.shape[1]//self.gt_downsample)
