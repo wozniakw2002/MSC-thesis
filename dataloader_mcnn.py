@@ -27,7 +27,7 @@ class CrowdDataset(Dataset):
         if len(img.shape)==2:
             img=img[:,:,np.newaxis]
             img=np.concatenate((img,img,img),2)
-
+        print(img.dtype)
         gt_dmap=np.load(os.path.join(self.gt_map_path,img_name.replace('.jpg','.npz')))['arr']
         gt_dmap = gt_dmap.astype(np.float32)
         if self.gt_downsample>1:
@@ -40,5 +40,6 @@ class CrowdDataset(Dataset):
             #gt_dmap = gt_dmap.transpose((1,2,0))
         img_tensor=torch.tensor(img/255,dtype=torch.float)
         gt_dmap_tensor=torch.tensor(gt_dmap,dtype=torch.float)
-
+        print(img_tensor.shape)
+        print(gt_dmap_tensor.shape)
         return img_tensor,gt_dmap_tensor
