@@ -7,7 +7,7 @@ import cv2
 
 class CrowdDataset(Dataset):
 
-    def __init__(self,img_root,gt_map_path,gt_downsample=1, resize=False):
+    def __init__(self,img_root,gt_map_path,gt_downsample=1, resize=False, transform=None):
 
         self.img_root=img_root
         self.gt_map_path=gt_map_path
@@ -17,6 +17,7 @@ class CrowdDataset(Dataset):
                            if os.path.isfile(os.path.join(img_root,filename))]
         self.n_samples=len(self.img_names)
         self.resize = resize
+        self.transform = transform
 
     def __len__(self):
         return self.n_samples
@@ -49,4 +50,6 @@ class CrowdDataset(Dataset):
             #gt_dmap = gt_dmap.transpose((1,2,0))
         img_tensor=torch.tensor(img/255,dtype=torch.float)
         gt_dmap_tensor=torch.tensor(gt_dmap,dtype=torch.float)
+        if self.transform:
+            img_tensor = self.transform(img_tensor)
         return img_tensor,gt_dmap_tensor
