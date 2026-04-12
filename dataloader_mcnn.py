@@ -7,7 +7,7 @@ import cv2
 
 class CrowdDataset(Dataset):
 
-    def __init__(self,img_root,gt_map_path,gt_downsample=1):
+    def __init__(self,img_root,gt_map_path,gt_downsample=1, resize=False):
 
         self.img_root=img_root
         self.gt_map_path=gt_map_path
@@ -16,6 +16,7 @@ class CrowdDataset(Dataset):
         self.img_names=[filename for filename in os.listdir(img_root) \
                            if os.path.isfile(os.path.join(img_root,filename))]
         self.n_samples=len(self.img_names)
+        self.resize = resize
 
     def __len__(self):
         return self.n_samples
@@ -28,15 +29,16 @@ class CrowdDataset(Dataset):
             img=img[:,:,np.newaxis]
             img=np.concatenate((img,img,img),2)
         if img.shape[2] == 4:
-            img = img[:, :, :3] 
+            img = img[:, :, :3]
         gt_dmap=np.load(os.path.join(self.gt_map_path,img_name.replace('.jpg','.npz')))['arr']
         gt_dmap = gt_dmap.astype(np.float32)
 
-        TARGET_SIZE = (640, 360)
-        orig_h, orig_w = img.shape[:2]
-        img = cv2.resize(img, TARGET_SIZE)
-        gt_dmap = cv2.resize(gt_dmap, TARGET_SIZE[::-1])
-        gt_dmap = gt_dmap * ((orig_h * orig_w) / (TARGET_SIZE[1] * TARGET_SIZE[0]))
+        if self.resize:
+            TARGET_SIZE = (640, 360)
+            orig_h, orig_w = img.shape[:2]
+            img = cv2.resize(img, TARGET_SIZE)
+            gt_dmap = cv2.resize(gt_dmap, TARGET_SIZE[::-1])
+            gt_dmap = gt_dmap * ((orig_h * orig_w) / (TARGET_SIZE[1] * TARGET_SIZE[0]))
         if self.gt_downsample>1:
             ds_rows=int(img.shape[0]//self.gt_downsample)
             ds_cols=int(img.shape[1]//self.gt_downsample)
