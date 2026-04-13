@@ -2,39 +2,65 @@ import torch
 import os
 
 
-def training_epoch(model, dataloader, optimizer, criterion, device):
+def training_epoch(model, dataloader, optimizer, criterion, device, is_dmap=True):
     model.train()
     epoch_loss = 0
-
-    for img, gt_map in dataloader:
-        img = img.to(device)
-        gt_map = gt_map.to(device)
-
-        pred_map = model(img)
-        loss = criterion(pred_map, gt_map)
-
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        epoch_loss += loss.item()
-
-    avg_loss = epoch_loss / len(dataloader)
-    return avg_loss
-
-
-def evaluate_mae_mse(model, dataloader, device):
-    model.eval()
-    mae = 0
-    mse = 0
-    with torch.no_grad():
+    if is_dmap:
         for img, gt_map in dataloader:
             img = img.to(device)
             gt_map = gt_map.to(device)
 
             pred_map = model(img)
-            mae += abs(pred_map.sum() - gt_map.sum()).item()
-            mse += ((pred_map.sum() - gt_map.sum())**2).item()
+            loss = criterion(pred_map, gt_map)
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            epoch_loss += loss.item()
+    else:
+        for _, img, gt_sum in dataloader:
+            B, N, C, H, W = img.shape
+            img = img.view(B * N, C, H, W).to(device)
+            gt_sum =  gt_sum.type(torch.FloatTensor).to(device).unsqueeze(1)
+
+            pred_sum = model(img)
+            pred_sum = pred_sum.view(B, N).sum(dim=1, keepdim=True)
+            loss = criterion(pred_sum, gt_sum)
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            epoch_loss += loss.item()
+
+    avg_loss = epoch_loss / len(dataloader)
+    return avg_loss
+
+
+def evaluate_mae_mse(model, dataloader, device, is_dmap =True):
+    model.eval()
+    mae = 0
+    mse = 0
+    with torch.no_grad():
+        if is_dmap:
+            for img, gt_map in dataloader:
+                img = img.to(device)
+                gt_map = gt_map.to(device)
+
+                pred_map = model(img)
+                mae += abs(pred_map.sum() - gt_map.sum()).item()
+                mse += ((pred_map.sum() - gt_map.sum())**2).item()
+        else:
+            for _, img, gt_sum in dataloader:
+                B, N, C, H, W = img.shape
+                img = img.view(B * N, C, H, W).to(device)
+                gt_sum = gt_sum.to(device)
+
+                pred_sum = model(img)
+                pred_sum = pred_sum.view(B, N).sum(dim=1)
+                mae += abs(pred_sum - gt_sum).item()
+                mse += ((pred_sum - gt_sum)**2).item()
     mae = mae / len(dataloader)
     mse = mse / len(dataloader)
     return mae, mse
@@ -49,7 +75,8 @@ def train(
     criterion,
     device,
     model_path,
-    tolerance=float("inf")
+    tolerance=float("inf"),
+    is_dmap = True
 ):
     train_loss_list = []
     val_mae_list = []
@@ -61,10 +88,10 @@ def train(
 
     for epoch in range(epochs):
         train_loss = training_epoch(
-            model, train_dataloader, optimizer, criterion, device
+            model, train_dataloader, optimizer, criterion, device, is_dmap=is_dmap
         )
 
-        val_mae, val_mse = evaluate_mae_mse(model, val_dataloader, device)
+        val_mae, val_mse = evaluate_mae_mse(model, val_dataloader, device, is_dmap=is_dmap)
 
         train_loss_list.append(train_loss)
         val_mae_list.append(val_mae)

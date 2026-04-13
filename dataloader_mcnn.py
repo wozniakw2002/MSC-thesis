@@ -4,10 +4,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import cv2
+import random
+from PIL import Image
 
 class CrowdDataset(Dataset):
 
-    def __init__(self,img_root,gt_map_path,gt_downsample=1, resize=False, transform=None):
+    def __init__(self,img_root,gt_map_path,gt_downsample=1, resize=False, transform=None, patch = False,
+                 train = False):
 
         self.img_root=img_root
         self.gt_map_path=gt_map_path
@@ -18,6 +21,8 @@ class CrowdDataset(Dataset):
         self.n_samples=len(self.img_names)
         self.resize = resize
         self.transform = transform
+        self.patch = patch
+        self.train = train
 
     def __len__(self):
         return self.n_samples
@@ -34,6 +39,42 @@ class CrowdDataset(Dataset):
         gt_dmap=np.load(os.path.join(self.gt_map_path,img_name.replace('.jpg','.npz')))['arr']
         gt_dmap = gt_dmap.astype(np.float32)
 
+        if self.patch:
+            img = cv2.resize(img, (1152, 768))
+
+            gt_count = np.sum(gt_dmap)
+
+            # augmentation
+            if self.train and random.random() > 0.5:
+                img = Image.fromarray(img)
+                img = img.transpose(Image.FLIP_LEFT_RIGHT)
+                img = np.array(img)
+
+            if self.transform is not None:
+                img = self.transform(img)   # (C, H, W)
+
+            C, H, W = img.shape
+
+            ph, pw = 384, 384
+            m = W // pw   # 3
+            n = H // ph   # 2
+
+            patches = []
+
+            for i in range(m):
+                for j in range(n):
+
+                    x1 = i * pw
+                    x2 = (i + 1) * pw
+                    y1 = j * ph
+                    y2 = (j + 1) * ph
+
+                    patch = img[:, y1:y2, x1:x2]
+                    patches.append(patch)
+
+            img_return = torch.stack(patches) 
+
+            return self.img_root, img_return, gt_count
         if self.resize:
             TARGET_SIZE = (640, 360)
             orig_h, orig_w = img.shape[:2]
@@ -44,10 +85,11 @@ class CrowdDataset(Dataset):
             ds_rows=int(img.shape[0]//self.gt_downsample)
             ds_cols=int(img.shape[1]//self.gt_downsample)
             img = cv2.resize(img,(ds_cols*self.gt_downsample,ds_rows*self.gt_downsample))
-            img=img.transpose((2,0,1))
             gt_dmap=cv2.resize(gt_dmap,(ds_cols,ds_rows))
             gt_dmap=gt_dmap[np.newaxis,:,:]*(self.gt_downsample**2)
             #gt_dmap = gt_dmap.transpose((1,2,0))
+        
+        img=img.transpose((2,0,1))
         img_tensor=torch.tensor(img/255,dtype=torch.float)
         gt_dmap_tensor=torch.tensor(gt_dmap,dtype=torch.float)
         if self.transform:
