@@ -59,8 +59,8 @@ def evaluate_mae_mse(model, dataloader, device, is_dmap =True):
 
                 pred_sum = model(img)
                 pred_sum = pred_sum.view(B, N).sum(dim=1)
-                mae += abs(pred_sum - gt_sum).item()
-                mse += ((pred_sum - gt_sum)**2).item()
+                mae += torch.abs(pred_sum - gt_sum).mean().item()
+                mse += ((pred_sum - gt_sum) ** 2).mean().item()
     mae = mae / len(dataloader)
     mse = mse / len(dataloader)
     return mae, mse
