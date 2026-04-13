@@ -115,7 +115,7 @@ def base_patch16_384_token(pretrained=False, **kwargs):
 
 
 @register_model
-def base_patch16_384_gap(pretrained=False, **kwargs):
+def base_patch16_384_gap(pretrained=False, path = r'output\models\transcrowd\deit_base_patch16_384-8de9b5d1.pth',**kwargs):
     model = VisionTransformer_gap(
         img_size=384, patch_size=16, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4, qkv_bias=True,
         norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
@@ -123,7 +123,7 @@ def base_patch16_384_gap(pretrained=False, **kwargs):
     if pretrained:
         '''download from https://dl.fbaipublicfiles.com/deit/deit_base_patch16_384-8de9b5d1.pth'''
         checkpoint = torch.load(
-            r'output\models\transcrowd\deit_base_patch16_384-8de9b5d1.pth')
+            path)
         model.load_state_dict(checkpoint["model"], strict=False)
         print("load transformer pretrained")
     return model
