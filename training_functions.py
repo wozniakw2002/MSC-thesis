@@ -54,6 +54,8 @@ def evaluate_mae_mse(model, dataloader, device, is_dmap =True, is_points = False
         else:
             if is_points:
                 for img, gt_map in dataloader:
+                    img = img.to(device)
+                    gt_map = gt_map.to(device)
                     outputs = model(img)
                     outputs_scores = torch.nn.functional.softmax(outputs['pred_logits'], -1)[:, :, 1][0]
                     threshold = 0.5
