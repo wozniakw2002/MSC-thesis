@@ -38,7 +38,7 @@ def training_epoch(model, dataloader, optimizer, criterion, device, is_dmap=True
     return avg_loss
 
 
-def evaluate_mae_mse(model, dataloader, device, is_dmap =True):
+def evaluate_mae_mse(model, dataloader, device, is_dmap =True, is_points = False):
     model.eval()
     mae = 0
     mse = 0
@@ -52,15 +52,25 @@ def evaluate_mae_mse(model, dataloader, device, is_dmap =True):
                 mae += abs(pred_map.sum() - gt_map.sum()).item()
                 mse += ((pred_map.sum() - gt_map.sum())**2).item()
         else:
-            for _, img, gt_sum in dataloader:
-                B, N, C, H, W = img.shape
-                img = img.view(B * N, C, H, W).to(device)
-                gt_sum = gt_sum.to(device)
+            if is_points:
+                for img, gt_map in dataloader:
+                    outputs = model(img)
+                    outputs_scores = torch.nn.functional.softmax(outputs['pred_logits'], -1)[:, :, 1][0]
+                    threshold = 0.5
+                    predict_cnt = int((outputs_scores > threshold).sum())
+                    mae += abs(predict_cnt - gt_map.sum()).item()
+                    mse += ((predict_cnt - gt_map.sum())**2).item()
+            
+            else:
+                for _, img, gt_sum in dataloader:
+                    B, N, C, H, W = img.shape
+                    img = img.view(B * N, C, H, W).to(device)
+                    gt_sum = gt_sum.to(device)
 
-                pred_sum = model(img)
-                pred_sum = pred_sum.view(B, N).sum(dim=1)
-                mae += torch.abs(pred_sum - gt_sum).mean().item()
-                mse += ((pred_sum - gt_sum) ** 2).mean().item()
+                    pred_sum = model(img)
+                    pred_sum = pred_sum.view(B, N).sum(dim=1)
+                    mae += torch.abs(pred_sum - gt_sum).mean().item()
+                    mse += ((pred_sum - gt_sum) ** 2).mean().item()
     mae = mae / len(dataloader)
     mse = mse / len(dataloader)
     return mae, mse

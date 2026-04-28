@@ -76,8 +76,8 @@ class CrowdDataset(Dataset):
 
             return self.img_root, img_return, gt_count
         if self.resize:
-            TARGET_SIZE = (640, 360)
             orig_h, orig_w = img.shape[:2]
+            TARGET_SIZE = (orig_w//128*128, orig_h//128*128)
             img = cv2.resize(img, TARGET_SIZE)
             gt_dmap = cv2.resize(gt_dmap, TARGET_SIZE[::-1])
             gt_dmap = gt_dmap * ((orig_h * orig_w) / (TARGET_SIZE[1] * TARGET_SIZE[0]))
