@@ -10,7 +10,7 @@ from PIL import Image
 class CrowdDataset(Dataset):
 
     def __init__(self,img_root,gt_map_path,gt_downsample=1, resize=False, transform=None, patch = False,
-                 train = False):
+                 train = False, one_size = False):
 
         self.img_root=img_root
         self.gt_map_path=gt_map_path
@@ -23,7 +23,7 @@ class CrowdDataset(Dataset):
         self.transform = transform
         self.patch = patch
         self.train = train
-
+        self.one_size = one_size
     def __len__(self):
         return self.n_samples
 
@@ -81,6 +81,10 @@ class CrowdDataset(Dataset):
             img = cv2.resize(img, TARGET_SIZE)
             gt_dmap = cv2.resize(gt_dmap, TARGET_SIZE[::-1])
             gt_dmap = gt_dmap * ((orig_h * orig_w) / (TARGET_SIZE[1] * TARGET_SIZE[0]))
+        if self.one_size:
+            img = cv2.resize(img, (1152, 768))
+            gt_dmap = cv2.resize(gt_dmap, (1152, 768))
+            gt_dmap = gt_dmap* ((img.shape[0] * img.shape[1]) / (1152 * 768))
         if self.gt_downsample>1:
             ds_rows=int(img.shape[0]//self.gt_downsample)
             ds_cols=int(img.shape[1]//self.gt_downsample)
