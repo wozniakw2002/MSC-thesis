@@ -77,6 +77,7 @@ class BRBM:
 
     def fit(self, V, iterations, learning_rate, cd_n=1):
         for i in range(iterations):
+            print(f"Iteration {i + 1}/{iterations}")
             # gradient descent
             for v in V:
                 h = self.draw_hidden(v)
