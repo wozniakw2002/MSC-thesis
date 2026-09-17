@@ -211,3 +211,8 @@ __marimo__/
 /data
 .npy
 .vscode
+*.zip
+*.pt
+*.joblib
+*.pth
+*.npz

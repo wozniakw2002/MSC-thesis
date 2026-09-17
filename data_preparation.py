@@ -9,14 +9,17 @@ import torch
 
 
 def get_data_from_Kaggle(dataset, destination_path):
+    """Download a Kaggle dataset and copy it to a local folder."""
     path = kagglehub.dataset_download(dataset)
-    shutil.copytree(path, destination_path, dirs_exist_ok = True)
+    shutil.copytree(path, destination_path, dirs_exist_ok=True)
     print("Dataset copied successfully.")
     shutil.rmtree(path)
     print("Cache deleted.")
 
-def divide_into_img_gt(path, img_name = 'images', gt_name = 'matrices', img_ext = '.jpg',
-                       gt_ext = '.mat'):
+
+def divide_into_img_gt(path, img_name='images', gt_name='matrices', img_ext='.jpg',
+                       gt_ext='.mat'):
+    """Move image and annotation files into separate folders."""
     images = os.path.join(path, img_name)
     gt = os.path.join(path, gt_name)
 
@@ -31,7 +34,9 @@ def divide_into_img_gt(path, img_name = 'images', gt_name = 'matrices', img_ext 
             elif file.endswith(gt_ext):
                 shutil.move(file_path, os.path.join(gt, file))
 
-def concat_folders(path, folders_name = 'images_part', out_name = 'images'):
+
+def concat_folders(path, folders_name='images_part', out_name='images'):
+    """Merge folders with a common prefix into one output folder."""
     target_folder = os.path.join(path, out_name)
     os.makedirs(target_folder, exist_ok=True)
 
@@ -39,52 +44,59 @@ def concat_folders(path, folders_name = 'images_part', out_name = 'images'):
         folder_path = os.path.join(path, folder)
 
         if os.path.isdir(folder_path) and folder.startswith(folders_name):
-
             for file in os.listdir(folder_path):
                 src = os.path.join(folder_path, file)
                 dst = os.path.join(target_folder, file)
-
                 shutil.move(src, dst)
             os.rmdir(folder_path)
 
 
 def rename_folder(path, name):
+    """Rename a folder to a new name."""
     folder = Path(path)
     folder.rename(folder.parent / name)
 
+
 def rename_files_in_folder(folder, prefix='ann_'):
+    """Add a prefix to all files in a folder."""
     for file in os.listdir(folder):
         path = os.path.join(folder, file)
 
         if os.path.isfile(path):
             os.rename(path, os.path.join(folder, prefix + file))
 
+
 def rename_files_sequentialy(path, folder='ground-truth', prefix='ann_'):
+    """Rename files recursively inside a target folder."""
     dir_list = os.listdir(path)
     if folder not in dir_list:
         for dir in dir_list:
             new_path = os.path.join(path, dir)
             if os.path.isdir(new_path):
-                rename_files_sequentialy(new_path,folder,prefix)
+                rename_files_sequentialy(new_path, folder, prefix)
     else:
-        new_path = os.path.join(path,folder)
+        new_path = os.path.join(path, folder)
         rename_files_in_folder(new_path, prefix)
 
-def rename_folders_sequentialy(path, sufix = '_data', new_name = None):
+
+def rename_folders_sequentialy(path, sufix='_data', new_name=None):
+    """Rename folders that end with a given suffix."""
     dir_list = os.listdir(path)
     for dir in dir_list:
-        new_path = os.path.join(path,dir)
+        new_path = os.path.join(path, dir)
         if dir.endswith(sufix):
-            if new_name == None:
+            if new_name is None:
                 new_name = dir.removesuffix(sufix)
             rename_folder(new_path, new_name)
         elif os.path.isdir(new_path):
             rename_folders_sequentialy(new_path, sufix, new_name)
 
+
 def flatten_folders(path):
+    """Move subfolders into a parent folder and delete the source directory."""
     parent_name = os.path.basename(path)
-    subfolders = [f for f in os.listdir(path) 
-                if os.path.isdir(os.path.join(path, f))]
+    subfolders = [f for f in os.listdir(path)
+                  if os.path.isdir(os.path.join(path, f))]
 
     for sub in subfolders:
         sub_path = os.path.join(path, sub)
@@ -92,7 +104,9 @@ def flatten_folders(path):
         shutil.move(sub_path, new_folder)
     shutil.rmtree(path)
 
+
 def split_test_val_test(path):
+    """Create dataset splits based on ID lists from text files."""
     images_folder = os.path.join(path, "images")
     matrices_folder = os.path.join(path, "matrices")
     txt_files = [f for f in os.listdir(path) if f.endswith(".txt")]
@@ -107,21 +121,21 @@ def split_test_val_test(path):
         with open(txt_path, "r") as f:
             for line in f:
                 numbers.append(line.strip().split()[0])
-        
+
         for file in os.listdir(images_folder):
             if any(num in file for num in numbers):
                 shutil.copy2(os.path.join(images_folder, file),
-                            os.path.join(target_folder, "images", file))
+                             os.path.join(target_folder, "images", file))
         for file in os.listdir(matrices_folder):
             if any(num in file for num in numbers):
                 shutil.copy2(os.path.join(matrices_folder, file),
-                            os.path.join(target_folder, "matrices", file))
+                             os.path.join(target_folder, "matrices", file))
     shutil.rmtree(images_folder)
     shutil.rmtree(matrices_folder)
 
 
-
-def create_density_map(image, points, leaf_size = 64, k=5, beta = 0.3):
+def create_density_map(image, points, leaf_size=64, k=5, beta=0.3):
+    """Generate a crowd density map from image pixels and annotation points."""
     h, w = image.shape[:2]
     density = torch.zeros((h, w), dtype=torch.float32)
 
@@ -130,7 +144,7 @@ def create_density_map(image, points, leaf_size = 64, k=5, beta = 0.3):
 
     pts = np.array(points)
     tree = scipy.spatial.KDTree(points.copy(), leafsize=leaf_size)
-    distances, _ = tree.query(pts, k=min(k+1, len(points)))
+    distances, _ = tree.query(pts, k=min(k + 1, len(points)))
 
     for i, (x, y) in enumerate(pts):
         x, y = int(x), int(y)
@@ -166,7 +180,8 @@ def create_density_map(image, points, leaf_size = 64, k=5, beta = 0.3):
     return density
 
 
-def create_density_maps_in_folders(path, ann_first = True, mat_format = '.mat', is_shanghai = False):
+def create_density_maps_in_folders(path, ann_first=True, mat_format='.mat', is_shanghai=False):
+    """Generate density maps for all images in a dataset folder."""
     dir_list = os.listdir(path)
     if 'matrices' not in dir_list:
         for dir in dir_list:
@@ -174,9 +189,9 @@ def create_density_maps_in_folders(path, ann_first = True, mat_format = '.mat', 
             if os.path.isdir(new_path):
                 create_density_maps_in_folders(new_path, ann_first, mat_format, is_shanghai)
     else:
-        images_path = os.path.join(path,'images')
-        matrices_path = os.path.join(path,'matrices')
-        maps_path = os.path.join(path,'maps')
+        images_path = os.path.join(path, 'images')
+        matrices_path = os.path.join(path, 'matrices')
+        maps_path = os.path.join(path, 'maps')
         os.makedirs(maps_path, exist_ok=True)
         images_list = os.listdir(images_path)
         maps_list = os.listdir(maps_path)
@@ -194,7 +209,7 @@ def create_density_maps_in_folders(path, ann_first = True, mat_format = '.mat', 
             matrix_path = os.path.join(matrices_path, matrix_file_name)
             if mat_format == '.mat':
                 if is_shanghai:
-                    points = scipy.io.loadmat(matrix_path)['image_info'][0,0][0,0][0]
+                    points = scipy.io.loadmat(matrix_path)['image_info'][0, 0][0, 0][0]
                 else:
                     points = scipy.io.loadmat(matrix_path)['annPoints']
             else:

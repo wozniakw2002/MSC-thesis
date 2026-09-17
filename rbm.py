@@ -52,8 +52,7 @@ class RBM:
 
     def draw_visible(self, h):
         h = h.to(self.device)
-        # v = torch.zeros(self.n_visible).to(self.device)
-        p = self.v_probability(h) # keep tensor shape
+        p = self.v_probability(h) 
         v = torch.bernoulli(p)
         return v
 
